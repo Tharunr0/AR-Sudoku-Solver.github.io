@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Sudoku Solver</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --bg: #0f0f13;
+            --surface: #1e1e24;
+            --text: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- LOADING INTRO --- */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.8s ease;
+        }
+
+        .grid-anim {
+            display: grid;
+            grid-template-columns: repeat(3, 20px);
+            gap: 5px;
+        }
+
+        .grid-box {
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+
+        .grid-box:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .grid-box:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .grid-box:nth-child(4) {
+            animation-delay: 0.1s;
+        }
+
+        .grid-box:nth-child(5) {
+            animation-delay: 0.2s;
+        }
+
+        .grid-box:nth-child(6) {
+            animation-delay: 0.3s;
+        }
+
+        .grid-box:nth-child(7) {
+            animation-delay: 0.2s;
+        }
+
+        .grid-box:nth-child(8) {
+            animation-delay: 0.3s;
+        }
+
+        .grid-box:nth-child(9) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(0.5);
+                opacity: 0.5;
+            }
+        }
+
+        /* --- MAIN UI --- */
+        header {
+            margin-top: 20px;
+            text-align: center;
+            animation: slideDown 1s ease forwards;
+            opacity: 0;
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .container {
+            position: relative;
+            margin-top: 30px;
+            width: 90%;
+            max-width: 600px;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            animation: zoomIn 1s ease forwards 0.5s;
+            opacity: 0;
+        }
+
+        video,
+        #resultCanvas,
+        #outputImage {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #outputImage {
+            display: none;
+            z-index: 10;
+        }
+
+        /* Scanning Overlay Effect */
+        .scanner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            z-index: 5;
+            display: none;
+            animation: scan 2s linear infinite;
+        }
+
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            animation: slideUp 1s ease forwards 0.8s;
+            opacity: 0;
+        }
+
+        button {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #solveBtn {
+            background: linear-gradient(135deg, #6C63FF, #4834d4);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 99, 255, 0.4);
+        }
+
+        #solveBtn:active {
+            transform: scale(0.95);
+        }
+
+        #resetBtn {
+            background: var(--surface);
+            color: #aaa;
+        }
+
+        #status {
+            margin-top: 20px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        /* Animations */
+        @keyframes scan {
+            0% {
+                top: 0;
+            }
+
+            100% {
+                top: 100%;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loader">
+        <div class="grid-anim">
+            <div class="grid-box"></div>
+            <div class="grid-box"></div>
+            <div class="grid-box"></div>
+            <div class="grid-box"></div>
+            <div class="grid-box"></div>
+            <div class="grid-box"></div>
+            <div class="grid-box"></div>
+            <div class="grid-box"></div>
+            <div class="grid-box"></div>
+        </div>
+    </div>
+
+    <header>
+        <h1>SUDOKU<span style="color:var(--primary)">.AI</span></h1>
+    </header>
+
+    <div class="container">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <img id="outputImage" alt="Solved Sudoku">
+        <div class="scanner" id="scanner"></div>
+    </div>
+
+    <div class="controls">
+        <button id="resetBtn" onclick="reset()">Reset</button>
+        <button id="solveBtn" onclick="captureAndSolve()">Solve Puzzle</button>
+    </div>
+
+    <p id="status">Align the grid and press Solve</p>
+
+    <script>
+        // --- LOADING ANIMATION ---
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loader').style.display = 'none';
+                }, 800);
+            }, 1500);
+        });
+
+        // --- CAMERA SETUP ---
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const outputImage = document.getElementById('outputImage');
+        const scanner = document.getElementById('scanner');
+        const statusText = document.getElementById('status');
+
+        // Access Webcam
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Error accessing camera:", err);
+                statusText.innerText = "Camera access denied.";
+            });
+
+        function captureAndSolve() {
+            // UI Feedback
+            scanner.style.display = 'block';
+            statusText.innerText = "Processing...";
+
+            // Capture Frame
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to Base64
+            const dataURL = canvas.toDataURL('image/jpeg');
+
+            // Send to Server
+            fetch('/process_frame', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: dataURL })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    scanner.style.display = 'none';
+                    statusText.innerText = data.status;
+
+                    if (data.image) {
+                        outputImage.src = data.image;
+                        outputImage.style.display = 'block';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    scanner.style.display = 'none';
+                    statusText.innerText = "Error connecting to server.";
+                });
+        }
+
+        function reset() {
+            outputImage.style.display = 'none';
+            scanner.style.display = 'none';
+            statusText.innerText = "Align the grid and press Solve";
+        }
+    </script>
+</body>
+
+</html>
